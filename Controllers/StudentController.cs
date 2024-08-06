@@ -15,6 +15,11 @@ namespace Grading_System_Backend.Controllers
         public StudentController(UnitOfWork unitOfWork) { 
             _unitOfWork = unitOfWork;
         }
+        [HttpGet("academicyears")]
+        public IActionResult getAcademicYears() { 
+            var academicYears = _unitOfWork.AcademicYearRepo.getAsQuery().ToList();
+            return Ok(academicYears);
+        }
 
         [HttpGet]
         public IActionResult getAll() {
@@ -98,7 +103,7 @@ namespace Grading_System_Backend.Controllers
             if (student == null) return NotFound();
             _unitOfWork.StudentRepo.delete(student);
             _unitOfWork.saveChanges();
-            return StatusCode(204,"Student is deleted");
+            return getAll();
         }
 
 
