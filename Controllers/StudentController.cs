@@ -41,6 +41,7 @@ namespace Grading_System_Backend.Controllers
                 .AsSplitQuery()
                 .Include(s => s.AcademicYear)
                 .Include(s => s.StudentSubjects)
+                .ThenInclude(s=>s.Subject)
                 .FirstOrDefault(s => s.Id == id);
         if(student == null)  return NotFound();
         return Ok(createStudentsDto(student));
@@ -56,18 +57,26 @@ namespace Grading_System_Backend.Controllers
 
                 return BadRequest(new { Errors = errors });
             }
+            var existedStudent = _unitOfWork.StudentRepo.getAsQuery().FirstOrDefault(s=>s.NationalId == dto.NationalId);
+            if(existedStudent != null) return BadRequest(new
+            {
+                message="this national ID already exists!"
+            });
             Student student = new Student();
             student.Name = dto.Name;
             student.NationalId = dto.NationalId;
+
+
 
             var academicYear = _unitOfWork.AcademicYearRepo.getById(dto.AcademicYearId);
             if (academicYear==null) return BadRequest("invalid id");
 
             student.AcademicYear = academicYear;
+            student.TotalGrade = 'z';
 
             _unitOfWork.StudentRepo.Add(student);
             _unitOfWork.saveChanges();
-            return Created("done ya m3lm",dto);
+            return getAll();
         }
         [HttpPut("{id:int}")]
         public IActionResult update(int id,AddUpdateStudentDto dto) {
@@ -79,6 +88,11 @@ namespace Grading_System_Backend.Controllers
 
                 return BadRequest(new { Errors = errors });
             }
+            var existedStudent = _unitOfWork.StudentRepo.getAsQuery().FirstOrDefault(s => s.NationalId == dto.NationalId);
+            if (existedStudent != null && existedStudent.Id != id) return BadRequest(new
+            {
+                message = "this national ID already exists!"
+            });
             var student = _unitOfWork.StudentRepo.getAsQuery()
                 .Include(s => s.AcademicYear)
                 .Include(s => s.StudentSubjects)
@@ -91,7 +105,7 @@ namespace Grading_System_Backend.Controllers
             student.AcademicYear = academicYear;
             _unitOfWork.saveChanges();
 
-            return Ok(createStudentsDto(student));
+            return getAll();
         }
 
         [HttpDelete("{id:int}")]
@@ -112,12 +126,15 @@ namespace Grading_System_Backend.Controllers
             studentDto.Name = student.Name;
             studentDto.NationalId = student.NationalId;
             studentDto.TotalGrade = student.TotalGrade;
+            studentDto.AcademicYearId = student?.AcademicYear.Id??0;
             studentDto.AcademicYear = student?.AcademicYear.Name??"";
+
             studentDto.Id = student.Id;
             studentDto.grades = new List<StudentGradeDto>();
             foreach (var item in student.StudentSubjects)
             {
                 StudentGradeDto studentGradeDto = new StudentGradeDto();
+                studentGradeDto.SubjectName = item?.Subject?.Name??"";
                 studentGradeDto.Term1 = item.Term1;
                 studentGradeDto.Term2 = item.Term2;
                 studentGradeDto.Total = item.Total;

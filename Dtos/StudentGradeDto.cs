@@ -4,6 +4,8 @@
     {
         public int StudentId { get; set; }
         public string StudentName { get; set; }
+
+        public string SubjectName { get; set; }
         public string AcademicYear { get; set; }
         public float Total { get; set; }
         public float Term1 { get; set; }

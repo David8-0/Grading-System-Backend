@@ -4,7 +4,9 @@
     {
         public int SubjectId { get; set; }
         public string SubjectName { get; set; }
-        
+
+        public int MaximumDegree { set; get; }
+
         public List<StudentGradeDto> studentGrades { get; set; }
 
         public int succeededStudentsNumber {  get; set; }

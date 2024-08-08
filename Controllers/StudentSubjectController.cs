@@ -73,6 +73,7 @@ namespace Grading_System_Backend.Controllers
             }
             _unitOfWork.StudentSubjectRepo.Add(studentSubjects);
             _unitOfWork.saveChanges();
+            calculateTotalGrade(student.Id);
             return Ok();
         }
 
@@ -107,7 +108,43 @@ namespace Grading_System_Backend.Controllers
             }
             _unitOfWork.StudentSubjectRepo.update(studentSubjects);
             _unitOfWork.saveChanges();
+            calculateTotalGrade(dto.StudentId);
             return Ok();
+        }
+
+
+        private void calculateTotalGrade(int studentId) {
+            var student = _unitOfWork.StudentRepo
+                .getAsQuery()
+                .Include(s => s.StudentSubjects)
+                .ThenInclude(s => s.Subject)
+                .FirstOrDefault(s=>s.Id == studentId);
+            float totalDegrees = 0;
+            float maximumDegrees = 0;
+            foreach (var item in student.StudentSubjects) {
+                totalDegrees += item.Total;
+                maximumDegrees += item.Subject.MaximumDegree * 2 ;
+            }
+            float totalPercentage = (totalDegrees / maximumDegrees) * 100;
+            switch (totalPercentage)
+            {
+                case >= 90:
+                    student.TotalGrade = 'A';
+                    break;
+                case < 90 and >= 75:
+                    student.TotalGrade = 'B';
+                    break;
+                case < 75 and >= 65:
+                    student.TotalGrade = 'C';
+                    break;
+                case < 65 and >= 50:
+                    student.TotalGrade = 'D';
+                    break;
+                case < 50:
+                    student.TotalGrade = 'F';
+                    break;
+            }
+            _unitOfWork.saveChanges();
         }
     }
 }

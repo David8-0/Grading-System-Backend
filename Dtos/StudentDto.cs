@@ -10,6 +10,7 @@ namespace Grading_System_Backend.Dtos
         public string NationalId { get; set; }
         [Required]
         public string Name { get; set; }
+        public int AcademicYearId { get; set; }
         public string AcademicYear { get; set; }
 
         public char TotalGrade { get; set; }

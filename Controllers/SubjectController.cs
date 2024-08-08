@@ -32,6 +32,7 @@ namespace Grading_System_Backend.Controllers
                 subjectStudentDto.SubjectId = subject.id;
                 subjectStudentDto.SubjectName = subject.Name;
                 subjectStudentDto.studentGrades = new List<StudentGradeDto>();
+                subjectStudentDto.MaximumDegree = subject.MaximumDegree;
 
                 subjectStudentDto.succeededStudentsNumber = subject.StudentSubjects.Where(s=>s.Total>=subject.MaximumDegree).Count();
                 subjectStudentDto.failedStudentsNumber = subject.StudentSubjects.Where(s=>s.Total<subject.MaximumDegree).Count();
