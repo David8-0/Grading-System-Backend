@@ -1,5 +1,6 @@
 ﻿using Grading_System_Backend.Dtos;
 using Grading_System_Backend.Models;
+using Grading_System_Backend.Services;
 using Grading_System_Backend.UnitOfWorks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,44 +12,34 @@ namespace Grading_System_Backend.Controllers
     [ApiController]
     public class StudentController : ControllerBase
     {
-        private UnitOfWork _unitOfWork;
-        public StudentController(UnitOfWork unitOfWork) { 
-            _unitOfWork = unitOfWork;
+        
+        private readonly StudentService _studentService;
+
+        public StudentController(StudentService studentService) { 
+            
+            _studentService = studentService;
         }
         [HttpGet("academicyears")]
         public IActionResult getAcademicYears() { 
-            var academicYears = _unitOfWork.AcademicYearRepo.getAsQuery().ToList();
+            var academicYears = _studentService.GetAcademicYears();
             return Ok(academicYears);
         }
 
         [HttpGet]
         public IActionResult getAll() {
-            var students = _unitOfWork.StudentRepo.getAsQuery()
-                .AsSplitQuery()
-                .Include(s=>s.AcademicYear)
-                .Include(s=>s.StudentSubjects);
-            List<StudentDto> result = new List<StudentDto>();
-            foreach (var item in students)
-            {
-                result.Add(createStudentsDto(item));
-            }
-            return Ok(result);
+            var students = _studentService.GetAll();
+            return Ok(students);
         }
-        [HttpGet("{id:int}")]
+        [HttpGet("{id:int}",Name ="getByStudentId")]
         public IActionResult getById(int id) { 
-            var student = _unitOfWork.StudentRepo
-                .getAsQuery()
-                .AsSplitQuery()
-                .Include(s => s.AcademicYear)
-                .Include(s => s.StudentSubjects)
-                .ThenInclude(s=>s.Subject)
-                .FirstOrDefault(s => s.Id == id);
-        if(student == null)  return NotFound();
-        return Ok(createStudentsDto(student));
+            var student = _studentService.GetById(id);
+                if(student == null)  return NotFound();
+        return Ok(student);
         }
         [HttpPost]
         public IActionResult add(AddUpdateStudentDto dto)
         {
+            Student student;
             if(!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors)
@@ -57,26 +48,17 @@ namespace Grading_System_Backend.Controllers
 
                 return BadRequest(new { Errors = errors });
             }
-            var existedStudent = _unitOfWork.StudentRepo.getAsQuery().FirstOrDefault(s=>s.NationalId == dto.NationalId);
-            if(existedStudent != null) return BadRequest(new
+            try
             {
-                message="this national ID already exists!"
-            });
-            Student student = new Student();
-            student.Name = dto.Name;
-            student.NationalId = dto.NationalId;
+                student = _studentService.Add(dto);
+            }
+            catch (Exception ex) { 
+                return BadRequest(ex.Message);
+            }
+            var newStudentList = _studentService.GetAll();
+            string url = Url.Link("getByStudentId", new { id = student.Id })??"";
 
-
-
-            var academicYear = _unitOfWork.AcademicYearRepo.getById(dto.AcademicYearId);
-            if (academicYear==null) return BadRequest("invalid id");
-
-            student.AcademicYear = academicYear;
-            student.TotalGrade = 'z';
-
-            _unitOfWork.StudentRepo.Add(student);
-            _unitOfWork.saveChanges();
-            return getAll();
+            return Created(url,newStudentList);
         }
         [HttpPut("{id:int}")]
         public IActionResult update(int id,AddUpdateStudentDto dto) {
@@ -88,62 +70,37 @@ namespace Grading_System_Backend.Controllers
 
                 return BadRequest(new { Errors = errors });
             }
-            var existedStudent = _unitOfWork.StudentRepo.getAsQuery().FirstOrDefault(s => s.NationalId == dto.NationalId);
-            if (existedStudent != null && existedStudent.Id != id) return BadRequest(new
+            Student student;
+            try
             {
-                message = "this national ID already exists!"
-            });
-            var student = _unitOfWork.StudentRepo.getAsQuery()
-                .Include(s => s.AcademicYear)
-                .Include(s => s.StudentSubjects)
-                .FirstOrDefault(s => s.Id == id);
-            if (student == null) return NotFound();
-            student.Name = dto.Name;
-            student.NationalId = dto.NationalId;
-            var academicYear = _unitOfWork.AcademicYearRepo.getById(dto.AcademicYearId);
-            if (academicYear == null) return BadRequest("invalid id");
-            student.AcademicYear = academicYear;
-            _unitOfWork.saveChanges();
+                student = _studentService.Update(id,dto);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            var newStudentList = _studentService.GetAll();
 
-            return getAll();
+            return Ok(newStudentList);
         }
 
         [HttpDelete("{id:int}")]
         public IActionResult Delete(int id)
         {
-            var student = _unitOfWork.StudentRepo
-                .getAsQuery()
-                .FirstOrDefault(s => s.Id == id);
-            if (student == null) return NotFound();
-            _unitOfWork.StudentRepo.delete(student);
-            _unitOfWork.saveChanges();
-            return getAll();
-        }
-
-
-        private StudentDto createStudentsDto(Student student) { 
-            StudentDto studentDto = new StudentDto();
-            studentDto.Name = student.Name;
-            studentDto.NationalId = student.NationalId;
-            studentDto.TotalGrade = student.TotalGrade;
-            studentDto.AcademicYearId = student?.AcademicYear.Id??0;
-            studentDto.AcademicYear = student?.AcademicYear.Name??"";
-
-            studentDto.Id = student.Id;
-            studentDto.grades = new List<StudentGradeDto>();
-            foreach (var item in student.StudentSubjects)
+            Student student;
+            try
             {
-                StudentGradeDto studentGradeDto = new StudentGradeDto();
-                studentGradeDto.SubjectName = item?.Subject?.Name??"";
-                studentGradeDto.Term1 = item.Term1;
-                studentGradeDto.Term2 = item.Term2;
-                studentGradeDto.Total = item.Total;
-                studentGradeDto.Grade = item.Grade;
-                //studentGradeDto.SubjectName = item?.Subject.Name??"";
-
-                studentDto.grades.Add(studentGradeDto);
+                student = _studentService.Delete(id);
             }
-            return studentDto;
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            var newStudentList = _studentService.GetAll();
+            return Ok(newStudentList);
         }
+
+
+        
     }
 }

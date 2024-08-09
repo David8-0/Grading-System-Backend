@@ -2,6 +2,7 @@
 using Grading_System_Backend.Models;
 using Microsoft.EntityFrameworkCore;
 using Grading_System_Backend.UnitOfWorks;
+using Grading_System_Backend.Services;
 
 namespace Grading_System_Backend
 {
@@ -29,6 +30,8 @@ namespace Grading_System_Backend
                 });
             });
             builder.Services.AddScoped<UnitOfWork>();
+            builder.Services.AddScoped<StudentService>();
+            builder.Services.AddScoped<SubjectService>();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
