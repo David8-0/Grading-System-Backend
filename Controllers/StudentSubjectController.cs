@@ -74,7 +74,7 @@ namespace Grading_System_Backend.Controllers
             _unitOfWork.StudentSubjectRepo.Add(studentSubjects);
             _unitOfWork.saveChanges();
             calculateTotalGrade(student.Id);
-            return Ok();
+            return GetSubjectsWithStudents();
         }
 
         [HttpPut]
@@ -109,7 +109,55 @@ namespace Grading_System_Backend.Controllers
             _unitOfWork.StudentSubjectRepo.update(studentSubjects);
             _unitOfWork.saveChanges();
             calculateTotalGrade(dto.StudentId);
-            return Ok();
+            return GetSubjectsWithStudents();
+        }
+
+        [HttpGet]
+        public IActionResult GetSubjectsWithStudents()
+        {
+            var subjects = _unitOfWork.SubjectRepo
+                .getAsQuery()
+                .AsSplitQuery()
+                .Include(s => s.StudentSubjects)
+                .ThenInclude(s => s.Student)
+                .ThenInclude(s => s.AcademicYear)
+                .Select(subject => new
+                {
+                    subject = subject,
+                    OrderedStudentSubjects = subject.StudentSubjects
+                        .OrderBy(ss => ss.Student.Name)
+                        .ToList()
+                })
+                .ToList();
+            List<SubjectStudentsDto> subjectStudentsList = new List<SubjectStudentsDto>();
+            foreach (var item in subjects)
+            {
+                var subjectStudentDto = new SubjectStudentsDto();
+                subjectStudentDto.SubjectId = item.subject.id;
+                subjectStudentDto.SubjectName = item.subject.Name;
+                subjectStudentDto.studentGrades = new List<StudentGradeDto>();
+                subjectStudentDto.MaximumDegree = item.subject.MaximumDegree;
+
+                subjectStudentDto.succeededStudentsNumber = item.subject.StudentSubjects.Where(s => s.Total >= item.subject.MaximumDegree).Count();
+                subjectStudentDto.failedStudentsNumber = item.subject.StudentSubjects.Where(s => s.Total < item.subject.MaximumDegree).Count();
+
+                foreach (var studentSubject in item.OrderedStudentSubjects)
+                {
+                    StudentGradeDto studentGradeDto = new StudentGradeDto();
+                    studentGradeDto.Term1 = studentSubject.Term1;
+                    studentGradeDto.Term2 = studentSubject.Term2;
+                    studentGradeDto.Total = studentSubject.Total;
+                    studentGradeDto.Grade = studentSubject.Grade;
+                    studentGradeDto.StudentId = studentSubject.Student.Id;
+                    studentGradeDto.StudentName = studentSubject.Student.Name;
+                    studentGradeDto.AcademicYear = studentSubject.Student.AcademicYear.Name;
+
+                    subjectStudentDto.studentGrades.Add(studentGradeDto);
+                }
+                subjectStudentsList.Add(subjectStudentDto);
+            }
+            return Ok(subjectStudentsList);
+
         }
 
 
